@@ -4,7 +4,7 @@
 
 **Trustless & fast-improving AI models — powered by [SN74 on Gittensor](https://gittensor.io/).**
 
-**SPARKDISTILL** is an open miner economy for **Triton-native AI**: frontier teachers
+**SPARKDISTILL** is an open miner economy for **[Triton](https://github.com/triton-lang/triton)-native AI**: frontier teachers
 (Claude Fable 5, GPT 5.6) generate data, small students learn to **develop, debug, and
 optimize GPU kernels** for the real world, and every reward depends on **cryptographic
 verification** — not maintainer opinion or third-party trust.
@@ -21,7 +21,7 @@ over proofs — only policy, hashes, and measured quality on the frontier.
 
 ### What we are building toward
 
-A **latest-Triton** specialist stack (Triton 3.7.1 on Blackwell today) that accelerates AI
+A **latest-[Triton](https://github.com/triton-lang/triton)** specialist stack (Triton 3.7.1 on Blackwell today) that accelerates AI
 by making models good at **kernel programming**: translation, correctness, profiling, and
 optimization — then serving those students fast on edge hardware via
 [`sparkinfer`](https://github.com/gittensor-ai-lab/sparkinfer).
