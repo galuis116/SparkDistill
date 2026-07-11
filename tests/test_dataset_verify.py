@@ -13,7 +13,13 @@ def _write_proof_dir(tmp_path, *, rows=3, attested=True, gate_passed=True, tampe
     sha = hashlib.sha256(traj_lines.encode()).hexdigest()
 
     (proof / "manifest.json").write_text(json.dumps({"version": "sparkproof-2"}))
-    (proof / "gpu_attestation.json").write_text(json.dumps({"passed": attested}))
+    (proof / "prompts.jsonl").write_text(json.dumps({"prompt": "p0"}) + "\n")
+    (proof / "trajectories_raw.jsonl").write_text(traj_lines)
+    (proof / "validation_report.jsonl").write_text(
+        "\n".join(json.dumps({"index": i, "validation": {"passed": True}}) for i in range(rows)) + "\n"
+    )
+    (proof / "gpu_attestation.json").write_text(json.dumps({"passed": attested, "nonce": "n" * 64}))
+    (proof / "novelty_report.json").write_text(json.dumps({"verified_rows": rows, "novel_verified_rows": rows}))
     (proof / "dataset_manifest.json").write_text(
         json.dumps(
             {
@@ -71,9 +77,16 @@ def test_claimed_sha_mismatch_rejects(tmp_path):
     assert any("claimed in the PR" in issue for issue in report["issues"])
 
 
+def test_missing_sparkproof_root_rejects(tmp_path):
+    proof, sha = _write_proof_dir(tmp_path)
+    report = verify_dataset_submission(proof, claimed_sha256=sha, sparkproof_root=None)
+    assert report["label"] == "dataset:REJECT"
+    assert any("sparkproof-root is required" in issue for issue in report["issues"])
+
+
 def test_missing_artifact_rejects(tmp_path):
     proof, _ = _write_proof_dir(tmp_path)
     (proof / "gpu_attestation.json").unlink()
-    report = verify_dataset_submission(proof)
+    report = verify_dataset_submission(proof, sparkproof_root=None)
     assert report["label"] == "dataset:REJECT"
     assert any("missing proof artifact" in issue for issue in report["issues"])

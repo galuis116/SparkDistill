@@ -11,8 +11,9 @@ artifacts), and opens a text-only PR here linking that HF repo plus the bundle's
 3. The release gate passed (decontamination + provenance) and `trajectories.jsonl`
    matches the sha256 the release gate recorded, so the rows can't be swapped after
    gating.
-4. Optionally re-runs full `sparkproof-verify` policy checks (unmodified-code / pinned
-   teacher / merkle) when a SparkProof checkout is available.
+4. Re-runs full production `sparkproof-verify` (pinned generator, pinned teachers,
+   raw/verified consistency, merkle, attestation nonce) when a SparkProof checkout is
+   available — required for merge.
 5. Sizes the dataset into a reward label from verified row count:
 
    | label | rows |
@@ -44,7 +45,15 @@ _SIZE_BANDS = [
     (100, "dataset:s"),
 ]
 
-REQUIRED_PROOF_FILES = ("manifest.json", "dataset_manifest.json", "gpu_attestation.json", "trajectories.jsonl")
+REQUIRED_PROOF_FILES = (
+    "manifest.json",
+    "dataset_manifest.json",
+    "gpu_attestation.json",
+    "trajectories.jsonl",
+    "trajectories_raw.jsonl",
+    "validation_report.jsonl",
+    "prompts.jsonl",
+)
 
 
 def size_label(rows: int) -> str:
@@ -70,6 +79,8 @@ def check_proof_dir(proof_dir: Path, claimed_sha256: str | None = None) -> tuple
     attestation = json.loads((proof_dir / "gpu_attestation.json").read_text())
     if not attestation.get("passed"):
         issues.append("gpu_attestation.passed is false")
+    if not attestation.get("nonce"):
+        issues.append("gpu_attestation.nonce missing — bundle predates content-bound attestation")
 
     dataset_manifest = json.loads((proof_dir / "dataset_manifest.json").read_text())
     if not dataset_manifest.get("passed"):
@@ -89,34 +100,52 @@ def check_proof_dir(proof_dir: Path, claimed_sha256: str | None = None) -> tuple
     if actual_rows != rows:
         issues.append(f"rows_total mismatch: manifest={rows} trajectories.jsonl={actual_rows}")
 
+    novelty_path = proof_dir / "novelty_report.json"
+    if not novelty_path.exists():
+        issues.append("missing novelty_report.json from release gate")
+
     return issues, rows
 
 
-def run_sparkproof_verify(proof_dir: Path, sparkproof_root: Path) -> list[str]:
-    """Re-run full SparkProof policy verification (pinned teachers, unmodified request
-    hashes, merkle root, GPU profile) via the sibling SparkProof checkout."""
+def run_sparkproof_verify(proof_dir: Path, sparkproof_root: Path, *, production: bool = True) -> list[str]:
+    """Re-run full SparkProof policy verification via the sibling SparkProof checkout."""
+    cmd = ["uv", "run", "sparkproof-verify", "--bundle", str(proof_dir)]
+    if not production:
+        cmd.append("--dev")
     result = subprocess.run(
-        ["uv", "run", "sparkproof-verify", "--bundle", str(proof_dir)],
+        cmd,
         cwd=sparkproof_root,
         capture_output=True,
         text=True,
         timeout=600,
     )
     if result.returncode != 0:
-        tail = (result.stdout + result.stderr).strip().splitlines()[-5:]
+        tail = (result.stdout + result.stderr).strip().splitlines()[-8:]
         return [f"sparkproof-verify failed: {' | '.join(tail)}"]
+    try:
+        report = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return []
+    if not report.get("verified"):
+        return list(report.get("issues") or ["sparkproof-verify returned verified=false"])
     return []
 
 
 def verify_dataset_submission(
-    proof_dir: Path,
+    proof_dir: Path | None = None,
     *,
     claimed_sha256: str | None = None,
     sparkproof_root: Path | None = None,
+    hf_repo: str | None = None,
+    production: bool = True,
 ) -> dict:
+    if proof_dir is None:
+        proof_dir = _resolve_proof_dir(hf_repo, None)
     issues, rows = check_proof_dir(proof_dir, claimed_sha256)
-    if not issues and sparkproof_root is not None:
-        issues.extend(run_sparkproof_verify(proof_dir, sparkproof_root))
+    if sparkproof_root is None:
+        issues.append("sparkproof-root is required for production dataset verification")
+    elif not issues:
+        issues.extend(run_sparkproof_verify(proof_dir, sparkproof_root, production=production))
 
     label = "dataset:REJECT" if issues else size_label(rows)
     return {
@@ -146,15 +175,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--sparkproof-root",
         type=Path,
-        default=None,
-        help="path to a SparkProof checkout to re-run full policy verification (recommended)",
+        required=True,
+        help="path to a SparkProof checkout to re-run full production policy verification",
     )
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
 
     proof_dir = _resolve_proof_dir(args.hf_repo, args.proof_path)
     report = verify_dataset_submission(
-        proof_dir, claimed_sha256=args.claimed_sha256, sparkproof_root=args.sparkproof_root
+        proof_dir,
+        claimed_sha256=args.claimed_sha256,
+        sparkproof_root=args.sparkproof_root,
+        hf_repo=args.hf_repo,
+        production=True,
     )
     if args.hf_repo:
         report["hf_repo"] = args.hf_repo

@@ -1,0 +1,61 @@
+name: Dataset registry gate
+
+on:
+  pull_request:
+    paths:
+      - "datasets/registry.jsonl"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  verify-and-merge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout SparkDistill
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout SparkProof
+        uses: actions/checkout@v4
+        with:
+          repository: gittensor-model-hub/SparkProof
+          path: SparkProof
+          ref: main
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install SparkProof
+        working-directory: SparkProof
+        run: uv sync --extra dev --frozen
+
+      - name: Install SparkDistill
+        run: uv sync --extra dev --frozen
+
+      - name: Verify registry PR
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          uv run python -m eval.registry_gate \
+            --base-ref "origin/${{ github.event.pull_request.base.ref }}" \
+            --head-ref HEAD \
+            --sparkproof-root SparkProof \
+            --out eval/results/registry_gate_report.json
+
+      - name: Merge on pass
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          uv run python -m eval.registry_gate \
+            --base-ref "origin/${{ github.event.pull_request.base.ref }}" \
+            --head-ref HEAD \
+            --sparkproof-root SparkProof \
+            --out eval/results/registry_gate_report.json \
+            --merge-on-pass \
+            --pr-number ${{ github.event.pull_request.number }}
