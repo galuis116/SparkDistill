@@ -19,5 +19,6 @@
     "triton_correctness": 0.0,
     "triton_syntax_pass_rate": 1.0
   },
-  "proof_verified": true
+  "proof_verified": true,
+  "tdx_bound": true
 }

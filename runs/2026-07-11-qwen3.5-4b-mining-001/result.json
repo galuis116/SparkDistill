@@ -27,5 +27,7 @@
   "train_gpu": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
   "claim_sha256": "c027fe41dc0f6dedfffe868b51319ed35cbfd904330c01399550b6e00fecd06d",
   "claim_bound": true,
-  "proof_verified": true
+  "proof_verified": true,
+  "tdx_bound": true,
+  "tdx_mrtd": "eea8b6a814569a52bd1e12f6b869bb2d9c0c8a7a43e658ffc3b42c199f116157ea7f04d359c7fdfd8ac483152cc13542"
 }
