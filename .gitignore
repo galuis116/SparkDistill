@@ -25,8 +25,13 @@ eval/results/
 proof/_bundles/
 *.safetensors
 *.gguf
+# tritonbench is vendored (see tritonbench/VENDORED.md) so evaluators and miners
+# run the same harness; only its generated/derived artifacts stay ignored.
 tritonbench/.venv/
 tritonbench/.tmp/
+tritonbench/results/
+tritonbench/LLM_generated/
+!tritonbench/**/*.jsonl
 
 # runs/ledger.jsonl is the immutable proof-of-training log — tracked, not ignored
 !runs/ledger.jsonl
@@ -42,4 +47,3 @@ tritonbench/.tmp/
 .DS_Store
 .vscode/
 .idea/
-tritonbench/

@@ -1,0 +1,22 @@
+id: vector_add
+level: 1
+category: kernel_generation
+title: Vector Addition Kernel
+prompt: |
+  Write a Triton 3.7.1 kernel that performs element-wise addition: C = A + B.
+
+  Requirements:
+  - Arbitrary vector sizes with boundary masking
+  - @triton.autotune with at least 3 configs
+  - Launcher + test vs torch.add on Blackwell SM120
+  Input: float32 tensors shape (N,)
+constraints:
+  dtype: float32
+required_patterns:
+  - "@triton.jit"
+  - "tl.load"
+  - "tl.store"
+  - "mask"
+tags:
+  - elementwise
+  - basic

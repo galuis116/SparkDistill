@@ -1,0 +1,31 @@
+[project]
+name = "tritonbench-sparkdistill"
+version = "0.3.0"
+description = "Triton 3.7.1 kernel benchmark + distillation helpers for SparkDistill (Blackwell workstation)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.6.0",
+    "triton==3.7.1",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.scripts]
+tritonbench = "tritonbench.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["tritonbench*"]

@@ -1,10 +1,35 @@
-from eval.verify import check_claim, check_training_claims
+from eval.verify import _no_student_endpoint_env, check_claim, check_training_claims
 
 
 def test_check_claim_within_tolerance_has_no_mismatch():
     claimed = {"gsm8k": 0.88, "humaneval": 0.80}
     rerun = {"gsm8k": 0.885, "humaneval": 0.795}
     assert check_claim(claimed, rerun, tolerance_pct=2.0) == []
+
+
+def test_check_claim_triton_compares_against_quick_subset():
+    # A full-run composite (levels 1-4) legitimately differs from a level-1-only
+    # re-run; the claim's triton_quick (same subset as the re-run) is the fair bar.
+    claimed = {"triton": 0.55, "triton_quick": 0.82}
+    rerun = {"triton": 0.815}
+    assert check_claim(claimed, rerun, tolerance_pct=2.0) == []
+    # And a fabricated quick-subset claim still gets caught.
+    assert check_claim({"triton": 0.55, "triton_quick": 0.95}, rerun, tolerance_pct=2.0) == ["triton"]
+
+
+def test_check_claim_triton_falls_back_to_headline_without_quick():
+    claimed = {"triton": 0.815}
+    rerun = {"triton": 0.82}
+    assert check_claim(claimed, rerun, tolerance_pct=2.0) == []
+
+
+def test_no_student_endpoint_env_hides_and_restores(monkeypatch):
+    import os
+
+    monkeypatch.setenv("SPARKDISTILL_STUDENT_ENDPOINT", "http://stale:8000/v1")
+    with _no_student_endpoint_env():
+        assert "SPARKDISTILL_STUDENT_ENDPOINT" not in os.environ
+    assert os.environ["SPARKDISTILL_STUDENT_ENDPOINT"] == "http://stale:8000/v1"
 
 
 def test_check_claim_beyond_tolerance_flags_mismatch():

@@ -1,11 +1,15 @@
 import json
+import os
+import time
+
+import pytest
 
 from eval.benchmarks import BENCHMARKS, run_benchmark
 from eval.score import score
-from eval.triton_bench import latest_report, summary_scores
+from eval.triton_bench import latest_report, run_tritonbench, serve_checkpoint, summary_scores
 
 
-def _report(composite=0.71, exec_pass=0.65, correctness=0.7, syntax=0.9):
+def _report(composite=0.71, exec_pass=0.65, correctness=0.7, syntax=0.9, details=None):
     return {
         "summary": {
             "avg_composite": composite,
@@ -17,6 +21,7 @@ def _report(composite=0.71, exec_pass=0.65, correctness=0.7, syntax=0.9):
             "avg_gen_time_s": 12.0,
         },
         "num_problems": 20,
+        **({"details": details} if details is not None else {}),
     }
 
 
@@ -32,10 +37,101 @@ def test_summary_scores_empty_report_is_zero():
     assert summary_scores({})["triton"] == 0.0
 
 
+def test_summary_scores_quick_subset_from_details():
+    details = [
+        {"level": 1, "composite_score": 0.9},
+        {"level": "bugfix", "composite_score": 0.7},
+        {"level": 4, "composite_score": 0.1},
+    ]
+    scores = summary_scores(_report(composite=0.5667, details=details))
+    # triton_quick covers only the level-1 + bugfix subset a quick re-run sees.
+    assert scores["triton_quick"] == pytest.approx(0.8)
+    assert scores["triton"] == pytest.approx(0.5667)
+
+
+def test_summary_scores_quick_falls_back_to_headline_without_details():
+    scores = summary_scores(_report(composite=0.71))
+    assert scores["triton_quick"] == 0.71
+
+
+def _write_report(path, report, mtime_ns):
+    path.write_text(json.dumps(report))
+    os.utime(path, ns=(mtime_ns, mtime_ns))
+
+
 def test_latest_report_picks_newest(tmp_path):
-    (tmp_path / "tritonbench_m_20260101_000000.json").write_text(json.dumps(_report(composite=0.1)))
-    (tmp_path / "tritonbench_m_20260201_000000.json").write_text(json.dumps(_report(composite=0.9)))
+    now = time.time_ns()
+    _write_report(tmp_path / "tritonbench_m_20260101_000000.json", _report(composite=0.1), now - 1_000_000)
+    _write_report(tmp_path / "tritonbench_m_20260201_000000.json", _report(composite=0.9), now)
     assert latest_report(tmp_path)["summary"]["avg_composite"] == 0.9
+
+
+def test_latest_report_ignores_stale_report_for_other_model(tmp_path):
+    # "zeta" sorts after "alpha" lexicographically but is the older run — mtime,
+    # not the model-name-first filename, must decide which report is newest.
+    now = time.time_ns()
+    _write_report(tmp_path / "tritonbench_zeta_20260101_000000.json", _report(composite=0.1), now - 1_000_000)
+    _write_report(tmp_path / "tritonbench_alpha_20260201_000000.json", _report(composite=0.9), now)
+    assert latest_report(tmp_path)["summary"]["avg_composite"] == 0.9
+
+
+def test_latest_report_newer_than_excludes_preexisting(tmp_path):
+    stamp = time.time_ns()
+    _write_report(tmp_path / "tritonbench_m_1.json", _report(composite=0.1), stamp - 1_000_000)
+    with pytest.raises(FileNotFoundError):
+        latest_report(tmp_path, newer_than_ns=stamp)
+    _write_report(tmp_path / "tritonbench_m_2.json", _report(composite=0.9), stamp + 1_000_000)
+    assert latest_report(tmp_path, newer_than_ns=stamp)["summary"]["avg_composite"] == 0.9
+
+
+def test_run_tritonbench_config_matches_run_depth(tmp_path, monkeypatch):
+    import eval.triton_bench as tb
+
+    commands = []
+
+    def fake_run(command, cwd=None, check=None, timeout=None):
+        commands.append(command)
+        path = tmp_path / "results" / f"tritonbench_m_{len(commands)}.json"
+        # Stamp explicitly past the run's start — write_text alone can land on a
+        # coarser filesystem tick than the nanosecond clock the filter uses.
+        _write_report(path, _report(), time.time_ns() + 1_000_000)
+
+    monkeypatch.setattr(tb.subprocess, "run", fake_run)
+    run_tritonbench("http://x/v1", "m", tmp_path / "results", tb._QUICK_LEVELS, bench_root=tmp_path)
+    run_tritonbench("http://x/v1", "m", tmp_path / "results", tb._FULL_LEVELS, bench_root=tmp_path)
+
+    assert tb._QUICK_CONFIG in commands[0]
+    assert tb._FULL_CONFIG in commands[1]
+
+
+def test_serve_checkpoint_passes_served_model_name(monkeypatch):
+    import eval.triton_bench as tb
+
+    captured = {}
+
+    class FakeProc:
+        returncode = 0
+
+        def poll(self):
+            return None
+
+        def terminate(self):
+            pass
+
+        def wait(self, timeout=None):
+            return 0
+
+    def fake_popen(command, stdout=None, stderr=None):
+        captured["command"] = command
+        return FakeProc()
+
+    monkeypatch.setattr(tb.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(tb, "_endpoint_ready", lambda endpoint: True)
+
+    with serve_checkpoint("/models/ckpt", served_model_name="ckpt") as endpoint:
+        assert endpoint.endswith("/v1")
+    assert "--served-model-name" in captured["command"]
+    assert "ckpt" in captured["command"]
 
 
 def test_triton_registered_in_basket():

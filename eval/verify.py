@@ -17,7 +17,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 from eval.benchmarks import BENCHMARKS
@@ -84,15 +86,38 @@ def check_mix_provenance(
 
 def check_claim(claimed: dict[str, float], rerun: dict[str, float], tolerance_pct: float = 2.0) -> list[str]:
     """Return the benchmark keys where the claimed score diverges from the cheap
-    re-run by more than `tolerance_pct` percentage points (absolute)."""
+    re-run by more than `tolerance_pct` percentage points (absolute).
+
+    The `triton` re-run is level-1-only, so it is compared against the claim's
+    `triton_quick` (the same problem subset) when present — a full-run composite
+    covers harder levels and would mismatch an honest claim systematically.
+    """
     mismatches = []
     for key, rerun_value in rerun.items():
         claimed_value = claimed.get(key)
+        if key == "triton" and "triton_quick" in claimed:
+            claimed_value = claimed["triton_quick"]
         if claimed_value is None:
             continue
         if abs(claimed_value - rerun_value) * 100.0 > tolerance_pct:
             mismatches.append(key)
     return mismatches
+
+
+@contextmanager
+def _no_student_endpoint_env():
+    """Force the re-run to serve the bundle's own checkpoint.
+
+    SPARKDISTILL_STUDENT_ENDPOINT is a miner convenience; during verification a
+    stale value would silently score whatever model that endpoint serves instead
+    of the checkpoint under verification.
+    """
+    saved = os.environ.pop("SPARKDISTILL_STUDENT_ENDPOINT", None)
+    try:
+        yield
+    finally:
+        if saved is not None:
+            os.environ["SPARKDISTILL_STUDENT_ENDPOINT"] = saved
 
 
 def verify_submission(
@@ -134,7 +159,8 @@ def verify_submission(
     # Re-run only registered benchmarks — claimed score files may carry extra detail
     # keys (e.g. eval.triton_bench's triton_* sub-metrics) that have no harness entry.
     claimed_benchmarks = sorted(key for key in claimed if key in BENCHMARKS)
-    rerun = run_harness(str(checkpoint_path), claimed_benchmarks, Path("eval/results/_verify"), limit=limit)
+    with _no_student_endpoint_env():
+        rerun = run_harness(str(checkpoint_path), claimed_benchmarks, Path("eval/results/_verify"), limit=limit)
     mismatches = check_claim(claimed, rerun, tolerance_pct)
     if mismatches:
         return {

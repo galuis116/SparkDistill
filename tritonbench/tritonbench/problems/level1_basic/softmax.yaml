@@ -1,0 +1,13 @@
+id: softmax
+level: 1
+category: kernel_generation
+title: Row-wise Softmax
+prompt: |
+  Write a Triton 3.7.1 row-wise softmax kernel for a 2D input (rows, cols).
+  Use fp32 accumulator, masking for cols not divisible by BLOCK_SIZE,
+  @triton.autotune, and torch.allclose test vs torch.softmax(dim=-1).
+constraints:
+  dtype: float32
+tags:
+  - reduction
+  - softmax

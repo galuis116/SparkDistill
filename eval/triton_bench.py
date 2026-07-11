@@ -41,6 +41,15 @@ from pathlib import Path
 HEADLINE_METRIC = "avg_composite"
 _QUICK_LEVELS = [1]  # cheap re-verification, mirrors configs/eval_quick.yaml
 _FULL_LEVELS = [1, 2, 3, 4]
+# Config must match the run depth: eval_quick.yaml caps max_tokens/timeout below
+# default.yaml, and a full run scored under quick's limits is not comparable to a
+# miner's full run under default.yaml.
+_QUICK_CONFIG = "configs/eval_quick.yaml"
+_FULL_CONFIG = "configs/default.yaml"
+# The problem subset a quick run covers (level 1 + bugfix, per eval_quick.yaml with
+# include_bugfix). `triton_quick` is the composite over this subset, computable from
+# both quick and full reports, so cheap re-verification compares like for like.
+_QUICK_PROBLEM_LEVELS = frozenset({1, "1", "bugfix"})
 
 
 def tritonbench_root() -> Path:
@@ -50,26 +59,55 @@ def tritonbench_root() -> Path:
     return Path(__file__).resolve().parents[1] / "tritonbench"
 
 
+def _quick_subset_composite(report: dict) -> float | None:
+    """Average composite over the quick-run problem subset (level 1 + bugfix).
+
+    Returns None when the report carries no per-problem details for the subset
+    (e.g. a bare summary), in which case callers fall back to the headline.
+    """
+    details = report.get("details") or []
+    quick = [r for r in details if r.get("level") in _QUICK_PROBLEM_LEVELS]
+    if not quick:
+        return None
+    return sum(float(r.get("composite_score", 0.0)) for r in quick) / len(quick)
+
+
 def summary_scores(report: dict) -> dict[str, float]:
     """Flatten a TritonBench report's summary into the score fields we track.
 
     `triton` (the headline, used by eval.score) is the average composite score;
     the rest are kept alongside it in the detail json for human review.
+    `triton_quick` is the composite over the quick-run subset — `eval.verify`
+    compares its level-1-only re-run against this, not the full-run headline.
     """
     summary = report.get("summary") or {}
+    headline = float(summary.get(HEADLINE_METRIC, 0.0))
+    quick = _quick_subset_composite(report)
     return {
-        "triton": float(summary.get(HEADLINE_METRIC, 0.0)),
+        "triton": headline,
+        "triton_quick": headline if quick is None else quick,
         "triton_exec_pass_rate": float(summary.get("exec_pass_rate", 0.0)),
         "triton_correctness": float(summary.get("avg_correctness", 0.0)),
         "triton_syntax_pass_rate": float(summary.get("syntax_pass_rate", 0.0)),
     }
 
 
-def latest_report(results_dir: Path) -> dict:
-    reports = sorted(results_dir.glob("tritonbench_*.json"))
+def latest_report(results_dir: Path, newer_than_ns: int | None = None) -> dict:
+    """Load the newest report by mtime, optionally only those written after a stamp.
+
+    Report filenames embed the model name before the timestamp, so lexicographic
+    order sorts by model first — with the results dir reused across runs, that can
+    resurrect a stale report for a different checkpoint. mtime (plus the
+    `newer_than_ns` stamp taken before the run) pins the report to the run that
+    just happened.
+    """
+    reports = list(results_dir.glob("tritonbench_*.json"))
+    if newer_than_ns is not None:
+        reports = [p for p in reports if p.stat().st_mtime_ns > newer_than_ns]
     if not reports:
         raise FileNotFoundError(f"TritonBench produced no results JSON under {results_dir}")
-    return json.loads(reports[-1].read_text())
+    newest = max(reports, key=lambda p: p.stat().st_mtime_ns)
+    return json.loads(newest.read_text())
 
 
 def _endpoint_ready(endpoint: str) -> bool:
@@ -81,14 +119,20 @@ def _endpoint_ready(endpoint: str) -> bool:
 
 
 @contextmanager
-def serve_checkpoint(model_path: str, port: int = 8000, startup_timeout_s: int = 600):
+def serve_checkpoint(model_path: str, port: int = 8000, startup_timeout_s: int = 600, served_model_name: str | None = None):
     """Serve `model_path` via `vllm serve` and yield the OpenAI-compatible endpoint.
 
     Requires the `vllm` CLI on PATH (installed separately, like lm-eval and Axolotl).
+    `served_model_name` must match the name the harness sends in its requests —
+    without it vLLM registers the model under the full `model_path` string and
+    rejects requests for the basename with a 404.
     """
     endpoint = f"http://127.0.0.1:{port}/v1"
+    command = ["vllm", "serve", model_path, "--port", str(port)]
+    if served_model_name:
+        command += ["--served-model-name", served_model_name]
     proc = subprocess.Popen(
-        ["vllm", "serve", model_path, "--port", str(port)],
+        command,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
@@ -116,20 +160,24 @@ def run_tritonbench(
     levels: list[int],
     bench_root: Path | None = None,
     timeout_s: int = 7200,
+    config: str | None = None,
 ) -> dict:
     root = bench_root or tritonbench_root()
     if not root.is_dir():
         raise FileNotFoundError(
             f"TritonBench not found at {root} — set SPARKDISTILL_TRITONBENCH_ROOT or vendor it"
         )
+    if config is None:
+        config = _QUICK_CONFIG if levels == _QUICK_LEVELS else _FULL_CONFIG
     results_dir.mkdir(parents=True, exist_ok=True)
+    started_ns = time.time_ns()
     command = [
         sys.executable,
         "-m",
         "tritonbench.cli",
         "eval",
         "--config",
-        "configs/eval_quick.yaml",
+        config,
         "--endpoint",
         endpoint,
         "--model",
@@ -140,7 +188,7 @@ def run_tritonbench(
         str(results_dir.resolve()),
     ]
     subprocess.run(command, cwd=root, check=True, timeout=timeout_s)
-    return latest_report(results_dir)
+    return latest_report(results_dir, newer_than_ns=started_ns)
 
 
 def run_triton_benchmark(
@@ -165,7 +213,7 @@ def run_triton_benchmark(
     if endpoint:
         report = run_tritonbench(endpoint, model_name, results_dir, levels)
     else:
-        with serve_checkpoint(model_path) as served:
+        with serve_checkpoint(model_path, served_model_name=model_name) as served:
             report = run_tritonbench(served, model_name, results_dir, levels)
 
     scores = summary_scores(report)
