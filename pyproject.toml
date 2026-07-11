@@ -40,7 +40,7 @@ build-backend = "hatchling.build"
 # nv-attestation-sdk's published metadata leaks its own dev/test pins (pytest==8.1.1,
 # build, twine, pylint) into requires_dist — override so they don't collide with our
 # actual dev-tool versions.
-override-dependencies = ["pytest==9.0.3"]
+override-dependencies = ["pytest==9.0.3", "numpy<2.5"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["teacher", "eval", "proof"]
