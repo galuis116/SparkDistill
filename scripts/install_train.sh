@@ -31,8 +31,10 @@ else
   else
     echo ">>> building FlashAttention for Blackwell SM120 (first install takes several minutes)"
     uv pip install -q ninja packaging wheel
+    build_jobs="${MAX_JOBS:-$(nproc)}"
+    echo "  CUDA arch: SM120; parallel jobs: $build_jobs ($(nproc) vCPUs available)"
     FLASH_ATTN_CUDA_ARCHS="${FLASH_ATTN_CUDA_ARCHS:-120}" \
-      MAX_JOBS="${MAX_JOBS:-8}" \
+      MAX_JOBS="$build_jobs" \
       uv pip install "flash-attn==2.8.3.post1" --no-build-isolation
     uv run python -c "import flash_attn; print(f'  flash-attn: {flash_attn.__version__}')"
   fi
