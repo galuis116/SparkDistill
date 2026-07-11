@@ -30,6 +30,8 @@ tritonbench/.tmp/
 
 # runs/ledger.jsonl is the immutable proof-of-training log — tracked, not ignored
 !runs/ledger.jsonl
+# datasets/registry.jsonl is the immutable dataset-track registry — tracked, not ignored
+!datasets/registry.jsonl
 
 # Env / secrets
 .env
