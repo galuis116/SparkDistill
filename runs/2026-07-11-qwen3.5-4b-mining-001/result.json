@@ -1,0 +1,22 @@
+{
+  "label": "eval:BASELINE",
+  "best_benchmark": "gsm8k",
+  "best_pct_delta": null,
+  "regressions": [],
+  "per_benchmark": {
+    "gsm8k": {
+      "candidate": 0.6,
+      "frontier": null,
+      "pct_delta": null,
+      "note": "20-example smoke run (lm-eval 0.4.11, exact_match,strict-match); no frontier exists yet - this run establishes the baseline"
+    }
+  },
+  "verified": true,
+  "reason": "first verified proof-of-training run on Qwen3.5-4B / sparkproof-mining; no prior frontier to score against (see .gittensor/weights.json BASELINE convention)",
+  "run_id": "2026-07-11-qwen3.5-4b-mining-001",
+  "checkpoint": "outputs/qwen3.5-4b-mining/merged",
+  "recipe": "recipes/qwen3.5-4b-phase1/sft-mining.yaml",
+  "dataset_url": "https://huggingface.co/datasets/gittensor-model-hub/sparkproof-mining",
+  "train_hours": 0.03,
+  "train_gpu": "NVIDIA RTX PRO 6000 Blackwell Server Edition"
+}
