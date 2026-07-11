@@ -26,6 +26,12 @@ by making models good at **kernel programming**: translation, correctness, profi
 optimization — then serving those students fast on edge hardware via
 [`sparkinfer`](https://github.com/gittensor-ai-lab/sparkinfer).
 
+[**SparkProof**](https://github.com/gittensor-model-hub/SparkProof) is what makes miner
+datasets valuable: a pre-designed, stratified pipeline whose diversity grows with every
+seeded rerun, every row GPU-validated and release-gated, sealed with confidential-computing
+attestation, and cheap for anyone to re-verify from the published `proof/` bundle — not a
+trust-me CSV.
+
 **Built through SN74 on Gittensor.** Contributors submit PRs (datasets, recipes, eval
 improvements); a deterministic harness scores marginal quality over the current frontier;
 SN74 rewards verified wins. This lives inside the existing SN74 subnet — not a separate
