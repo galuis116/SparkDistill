@@ -9,7 +9,12 @@ to answer". Each entry maps to an `lm-evaluation-harness`
 (https://github.com/EleutherAI/lm-evaluation-harness) task name — the harness
 itself is an external dependency, installed separately (like Axolotl), not
 vendored here.
-"""
+
+The `triton` entry is the exception: it is the domain-expertise signal for the
+Triton track and runs through the vendored TritonBench harness (`eval.triton_bench`)
+instead of lm-eval — each generated kernel is compiled and executed on the GPU. The
+general basket can't measure kernel skill; it keeps its regression-guard role while
+`triton` carries the improvement signal for Triton-focused recipes."""
 
 from __future__ import annotations
 
@@ -45,6 +50,10 @@ BENCHMARKS: dict[str, Benchmark] = {
         metric="exact_match",
         regression_floor_pct=2.0,
     ),
+    # TritonBench composite (compile + execute + correctness + API modernity), run via
+    # eval.triton_bench, not lm-eval. Its problems are quarantined from training data by
+    # SparkProof's release gate, which is what keeps this a legitimate held-out eval.
+    "triton": Benchmark(key="triton", lm_eval_task="", metric="avg_composite", regression_floor_pct=2.0),
 }
 
 
@@ -59,6 +68,11 @@ def run_benchmark(benchmark: Benchmark, model_path: str, output_dir: Path, limit
     during import so the harness stays importable (and its `--help` usable)
     without the harness or a GPU present.
     """
+    if benchmark.key == "triton":
+        from eval.triton_bench import run_triton_benchmark
+
+        return run_triton_benchmark(model_path, output_dir, limit=limit)
+
     output_dir.mkdir(parents=True, exist_ok=True)
     result_path = output_dir / f"{benchmark.key}.json"
     command = [

@@ -73,9 +73,30 @@ The measured benchmarks are:
 | MMLU-Pro | broad knowledge/reasoning |
 | AIME | competition-level multi-step math reasoning |
 | GPQA-Diamond | graduate-level science reasoning |
+| TritonBench (`triton`) | Triton kernel expertise — generated kernels are compiled and executed on the GPU |
 
 Small gains are not aggregated across benchmarks. A PR must clear the threshold on at
 least one benchmark without dropping others below their floor.
+
+**`triton` is the improvement signal for Triton-focused recipes** (the ones trained on
+dataset-track data) — the general basket cannot measure kernel skill and only guards
+against catastrophic forgetting there. It runs through the vendored TritonBench harness
+instead of lm-eval: the student is served behind an OpenAI-compatible endpoint, each
+generated kernel is compiled and executed on the Blackwell GPU, and the headline score
+is the average composite (correctness + execution + API modernity). TritonBench problems
+are quarantined from training data by SparkProof's release-gate decontamination, which
+is what keeps this a legitimate held-out eval — a dataset row that structurally matches
+a TritonBench problem is blocked before it can ever be trained on.
+
+```bash
+# serve + score in one step (requires vllm), or point --endpoint at a running server
+uv run python -m eval.triton_bench --checkpoint outputs/qwen3.5-4b-phase1 --serve \
+    --out eval/results/triton.json
+
+# or as part of the basket
+uv run python -m eval.harness --checkpoint outputs/qwen3.5-4b-phase1 --benchmark triton \
+    --out eval/results/candidate.json
+```
 
 ## What Does Not Score
 

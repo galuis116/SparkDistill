@@ -20,6 +20,7 @@ import json
 import sys
 from pathlib import Path
 
+from eval.benchmarks import BENCHMARKS
 from eval.harness import run_harness
 from eval.score import score
 
@@ -95,7 +96,10 @@ def verify_submission(
             "run_id": manifest.get("run_id"),
         }
 
-    rerun = run_harness(str(checkpoint_path), sorted(claimed), Path("eval/results/_verify"), limit=limit)
+    # Re-run only registered benchmarks — claimed score files may carry extra detail
+    # keys (e.g. eval.triton_bench's triton_* sub-metrics) that have no harness entry.
+    claimed_benchmarks = sorted(key for key in claimed if key in BENCHMARKS)
+    rerun = run_harness(str(checkpoint_path), claimed_benchmarks, Path("eval/results/_verify"), limit=limit)
     mismatches = check_claim(claimed, rerun, tolerance_pct)
     if mismatches:
         return {
