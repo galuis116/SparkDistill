@@ -113,6 +113,7 @@
   ol.steps li, ol.steps2 li { margin-bottom: 10px; }
 
   .pill { display: inline-block; background: var(--pill-bg); border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; font-size: 0.78rem; font-weight: 600; color: var(--fg-muted-solid); }
+  .hero-badge { margin-bottom: 18px; color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--bg-alt)); }
 
   .callout { background: var(--bg-alt); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 16px 18px; font-size: 0.92rem; margin-top: 20px; }
   .callout p { margin: 0; }
@@ -136,6 +137,7 @@
     <div class="brand">SP<span>⚡</span>RKDISTILL</div>
     <nav class="links">
       <a href="#why">Why</a>
+      <a href="#triton">Triton track</a>
       <a href="#how">How it works</a>
       <a href="#quickstart">Quickstart</a>
       <a href="#roadmap">Roadmap</a>
@@ -147,6 +149,7 @@
 <div class="wrap">
   <section class="hero">
     <img class="banner" src="images/banner.png" alt="SparkDistill banner">
+    <span class="pill hero-badge">World's first Triton-language-specialized LLM track — engineering faster AI engineering</span>
     <h1>Continuously-improving student models for the SparkInfer runtime.</h1>
     <p class="tagline">SPARKDISTILL turns frontier teacher models into small, fast student checkpoints — via trajectory distillation and Axolotl fine-tuning — that <code>sparkinfer</code> serves at the edge on consumer and edge Blackwell GPUs.</p>
     <div class="cta-row">
@@ -154,6 +157,30 @@
       <a class="btn ghost" href="https://github.com/gittensor-model-hub/SparkDistill/blob/main/docs/miner-guide.md">Miner guide</a>
       <a class="btn ghost" href="https://gittensor.io/">Built on Gittensor</a>
     </div>
+  </section>
+
+  <section id="triton">
+    <h2>Triton track</h2>
+    <p class="lede">A dedicated distillation track that turns <a href="https://github.com/gittensor-model-hub/SparkDistill/tree/main/tritonbench">TritonBench</a> into a training loop for a <strong>Triton-language-specialized LLM</strong> — a student model whose whole job is writing and optimizing Triton GPU kernels, so the AI engineering loop around kernel work gets faster end to end.</p>
+    <div class="grid-cards">
+      <div class="card">
+        <h3>Pinned to Triton 3.7.1</h3>
+        <p>Targets NVIDIA Blackwell only (workstation SM12x and datacenter SM10x profiles); older architectures are rejected at validation time.</p>
+      </div>
+      <div class="card">
+        <h3>Qwen3.5-4B student</h3>
+        <p>Distilled from GPT 5.6 Sol + Claude Fable 5 teacher trajectories into a dense student sized to iterate fast on Blackwell-class hardware.</p>
+      </div>
+      <div class="card">
+        <h3>Benchmarked on TritonBench</h3>
+        <p>Scored against 184 real-world operators (TritonBench-G) and 166 PyTorch-aligned tasks (TritonBench-T) from the <a href="https://arxiv.org/pdf/2502.14752">TritonBench (ACL 2025 Findings)</a> paper.</p>
+      </div>
+      <div class="card">
+        <h3>Served straight into Claude Code</h3>
+        <p>Exposed via an OpenAI-compatible API so the distilled kernel expert can sit behind an agentic CLI and write/optimize Triton kernels directly.</p>
+      </div>
+    </div>
+    <p><a href="https://github.com/gittensor-model-hub/SparkDistill/blob/main/tritonbench/PROJECT.md">Read the Triton-track architecture doc →</a></p>
   </section>
 
   <section id="why">
