@@ -36,8 +36,13 @@ def _has_flash_attn() -> bool:
 
 def _has_flash_attn_3() -> bool:
     try:
+        import torch
         from transformers.utils import is_flash_attn_3_available
 
+        # Official FA3 wheels currently contain Hopper kernels; they import on
+        # Blackwell but fail at launch with "no kernel image".
+        if torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 10:
+            return False
         return bool(is_flash_attn_3_available())
     except ImportError:
         return False
