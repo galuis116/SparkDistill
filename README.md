@@ -97,10 +97,14 @@ that resulted from running them:
 5. If it clears the quality gate, it's merged and labeled **XL / L / M / S / XS** by the
    measured delta, and the new checkpoint becomes the frontier.
 
-A checkpoint published via the proof-of-training fast path (below) is **never** the thing
-being merged or trusted directly — it only lets the evaluator skip straight to a cheap
-re-score of the claimed numbers instead of a full retrain. The recipe and dataset are what
-get merged, audited, and reused.
+The proof-of-training fast path (below) never uploads or trusts a checkpoint at all —
+**trained weights never leave the miner's machine**. A proof bundle carries only the
+claim: eval scores, training claims, and a per-file sha256 manifest of the checkpoint,
+with the whole claim cryptographically bound to the miner's GPU CC attestation
+(`claim_sha256` as the NRAS nonce). The validator reproduces the checkpoint locally from
+the recipe + dataset — retraining fits the 5-hour budget by rule, so that's cheaper than
+downloading multi-GB weights — and cheaply re-scores the claimed numbers instead of a
+blind full retrain. The recipe and dataset are what get merged, audited, and reused.
 
 **Why share the recipe and dataset instead of just the weights:** whoever holds the
 frontier ("the king") is required to have a fully public recipe + dataset behind their
@@ -166,18 +170,22 @@ does not replace sharing the recipe + dataset above, which is required on every 
 regardless of whether this fast path is used:
 
 1. Fine-tune locally and score against the current frontier (`scripts/eval.sh`).
-2. If you beat the frontier, attest the GPU you trained/evaluated on — e.g. a
-   Blackwell RTX PRO 6000 Server Edition confidential-computing (CC) node
-   (`python -m eval.attestation`).
-3. Package the checkpoint + eval scores into a bundle and publish it to Hugging
-   Face (`python -m proof.bundle`, `python -m proof.publish`) — the resulting
-   HF URL is your proof link.
-4. Open a PR referencing the HF proof link (and your attestation, if you collected
-   one), **and** the recipe + dataset link as described above.
-5. The evaluator cheaply re-verifies — a small held-out re-run of your claimed
-   scores plus (if provided) attestation validation, **not** a full retrain — and
-   merges if it checks out (`python -m eval.verify`).
-6. The merge is appended to the immutable `runs/ledger.jsonl` log, and the new
+2. If you beat the frontier, package the **claim** into a bundle — eval scores,
+   training claims, and a per-file sha256 manifest of your checkpoint, **not the
+   weights** (`python -m proof.bundle`) — and note the printed `claim_sha256`.
+3. Attest the GPU you trained/evaluated on — e.g. a Blackwell RTX PRO 6000 Server
+   Edition confidential-computing (CC) node — passing the claim digest as the
+   attestation nonce so the NRAS-signed token commits your exact claim to your GPU
+   (`python -m eval.attestation --nonce <claim_sha256>`).
+4. Publish the small, weights-free bundle to Hugging Face (`python -m proof.publish`)
+   — the resulting HF URL is your proof link.
+5. Open a PR referencing the HF proof link and your attestation, **and** the
+   recipe + dataset link as described above.
+6. The validator reproduces your checkpoint locally from the recipe + dataset, then
+   cheaply re-verifies — a small held-out re-run of your claimed scores plus
+   attestation validation (including the `claim_bound` nonce check), **not** a blind
+   full retrain — and merges if it checks out (`python -m eval.verify --checkpoint <local>`).
+7. The merge is appended to the immutable `runs/ledger.jsonl` log, and the new
    checkpoint becomes the frontier for the next submission.
 
 Unattested submissions still go through the slower path: full retrain-from-source
