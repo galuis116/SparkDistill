@@ -2,28 +2,40 @@
 
 # _SP⚡RKDISTILL_
 
-**Continuously-improving student models for the SparkInfer runtime.**
+**Trustless & fast-improving AI models — powered by [SN74 on Gittensor](https://gittensor.io/).**
 
-**SPARKDISTILL** turns frontier teacher models (Claude Fable 5, GPT 5.6) into small,
-fast student checkpoints — via trajectory distillation and Axolotl fine-tuning — that
-[`sparkinfer`](https://github.com/gittensor-ai-lab/sparkinfer) then serves at the edge on
-consumer and edge Blackwell GPUs.
+**SPARKDISTILL** is an open miner economy for **Triton-native AI**: frontier teachers
+(Claude Fable 5, GPT 5.6) generate data, small students learn to **develop, debug, and
+optimize GPU kernels** for the real world, and every reward depends on **cryptographic
+verification** — not maintainer opinion or third-party trust.
 
-**Built through [SN74 on Gittensor](https://gittensor.io/).** Gittensor helps power
-SPARKDISTILL the same way it powers `sparkinfer`: contributors submit PRs (trajectory
-generators, training recipes, eval improvements), a deterministic harness scores the
-resulting checkpoint's quality against the current frontier, and SN74 rewards verified
-improvements. This is a project living inside the existing SN74 subnet, not a separate
+### What is verified (without trusting miners)
+
+| Track | What you submit | What the validator re-checks |
+|---|---|---|
+| **Dataset** (`dataset:xs`–`xl`) | Hugging Face `proof/` + registry line | [SparkProof](https://github.com/gittensor-model-hub/SparkProof) bundle: pinned teachers, GPU CC attestation, release gate, merkle + raw→verified consistency — **no hand-waved CSV** |
+| **Training** (`eval:XS`–`XL`) | Public recipe + dataset + eval claim | Retrain-from-source or attested cheap re-score on held-out benchmarks — **not your checkpoint alone** |
+
+Miners compete; the harness and registry gate decide. Third parties do not get veto power
+over proofs — only policy, hashes, and measured quality on the frontier.
+
+### What we are building toward
+
+A **latest-Triton** specialist stack (Triton 3.7.1 on Blackwell today) that accelerates AI
+by making models good at **kernel programming**: translation, correctness, profiling, and
+optimization — then serving those students fast on edge hardware via
+[`sparkinfer`](https://github.com/gittensor-ai-lab/sparkinfer).
+
+**Built through SN74 on Gittensor.** Contributors submit PRs (datasets, recipes, eval
+improvements); a deterministic harness scores marginal quality over the current frontier;
+SN74 rewards verified wins. This lives inside the existing SN74 subnet — not a separate
 subnet.
 
 ## Why SPARKDISTILL
 
-`sparkinfer` makes inference fast; SPARKDISTILL makes the *model* worth serving fast.
-SPARKDISTILL's goal is **reasoning distillation**: teach a student model to reproduce a
-teacher's step-by-step reasoning process, not just its final answers. Frontier-quality
-outputs on consumer hardware require a student distilled from teacher reasoning
-trajectories, not just a raw quantized copy of a big model or a student fine-tuned on
-answers alone. SPARKDISTILL owns that pipeline:
+`sparkinfer` makes inference fast; SPARKDISTILL makes the *model* worth serving — and
+proves it. The goal is **trustless improvement**: teach a student to reproduce frontier
+reasoning and **verified Triton code**, not just plausible text. SPARKDISTILL owns:
 
 - **Trajectory generation.** Prompt a basket of teacher models on reasoning-heavy tasks
   (multi-step math, logic, proof-style code correctness), capturing each teacher's
@@ -248,7 +260,7 @@ bundle integrity — not that your use of teacher APIs was permitted. See
 [SparkProof `CONTRIBUTING.md`](https://github.com/gittensor-model-hub/SparkProof/blob/main/CONTRIBUTING.md)
 for the full terms-of-service gate.
 
-built by :Love
+built with ❤️
 
 ## License
 
