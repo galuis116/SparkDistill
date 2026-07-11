@@ -124,6 +124,7 @@
   .hero h1 a { color: inherit; text-decoration-color: var(--purple); text-decoration-thickness: 3px; text-underline-offset: 7px; }
   .hero p.tagline { font-size: clamp(1.05rem, 2vw, 1.28rem); color: var(--fg-muted-solid); max-width: 780px; margin: 0 auto 30px; }
   .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  section:not(.hero) .cta-row { margin-top: 28px; }
   .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 10px 22px; border-radius: 12px; font-weight: 750; font-size: 0.94rem; border: 1px solid var(--border); transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease; }
   .btn:hover { transform: translateY(-2px); text-decoration: none; }
   .btn.primary { background: linear-gradient(115deg, var(--blue), var(--purple)); color: #fff; border-color: transparent; box-shadow: 0 10px 26px color-mix(in srgb, var(--purple) 28%, transparent); }
