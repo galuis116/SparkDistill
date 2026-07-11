@@ -375,7 +375,10 @@ the clean pass.
 Training-track claims are enforced too: `--train-hours` beyond the **5-hour wall-clock
 budget** is `eval:REJECT`, `--train-gpu` must be an **RTX PRO 6000** CC node, and when
 you attach a CC attestation, its attested hardware model must corroborate the claimed
-GPU (a mismatched attestation is worse than none). `--dataset-url` should point at a
+GPU (a mismatched attestation is worse than none). The attestation itself is
+authenticated end-to-end: the validator verifies the NRAS-signed GPU tokens against
+NVIDIA's JWKS (`gpu_signature`) and the TDX quote against Intel PCS
+(`tdx_signature`) — a hand-crafted attestation JSON fails both. `--dataset-url` should point at a
 dataset merged through the dataset track (`datasets/registry.jsonl`), which is what
 makes the training result reproducible by anyone.
 
