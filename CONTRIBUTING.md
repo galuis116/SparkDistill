@@ -145,16 +145,31 @@ verification behavior are held for manual review — this protects the eval loop
 being tuned to inflate scores rather than to improve real quality. In particular, only
 the eval bot appends to `runs/ledger.jsonl` — it is not an append-anything log.
 
-## Open research: cross-miner dataset mixing
+## Cross-miner dataset mixing
 
-The **dataset track** already hosts verified per-miner datasets: SparkProof proves generation
-on Blackwell, `sparkproof-publish-dataset` uploads rows + `proof/` to Hugging Face, and
-[`datasets/registry.jsonl`](datasets/registry.jsonl) is gated by automated CI
-(`eval/registry_gate.py`, `.github/workflows/dataset_registry.yml`). What's still open is
-composing **multiple** registry entries into a single training mix with provenance
-accounting — not proving or hosting a single miner's bundle.
+After one or more datasets are merged into [`datasets/registry.jsonl`](datasets/registry.jsonl),
+training miners can combine them with [`eval/mix_registry.py`](eval/mix_registry.py):
 
-### SparkProof: Blackwell-verified Triton datasets
+```bash
+scripts/mix_registry.sh mix \
+  --registry datasets/registry.jsonl \
+  --sha256 <sha-a> --sha256 <sha-b> \
+  --out data/processed/mix_sft.jsonl \
+  --manifest-out data/processed/mix_manifest.json \
+  --sparkproof-root ../SparkProof
+
+scripts/mix_registry.sh verify \
+  --manifest data/processed/mix_manifest.json \
+  --sft data/processed/mix_sft.jsonl
+```
+
+The tool downloads each component's pinned `proof/trajectories.jsonl`, deduplicates across
+sources (SparkProof novelty fingerprints when `--sparkproof-root` is set), writes Axolotl
+`messages` records with per-row provenance metadata, and emits `mix_manifest.json` listing
+every `hf_url` + `trajectories_sha256` included. Commit the manifest in your training PR;
+attach it to a proof bundle with `proof.bundle --mix-manifest`.
+
+## SparkProof: Blackwell-verified Triton datasets
 
 **Implementation:** [SparkProof](https://github.com/gittensor-model-hub/SparkProof) (sibling repo).
 
@@ -205,13 +220,12 @@ the manifest if providers start exposing them; publish manifests to an append-on
 transparency log; optional zero-knowledge proofs of dataset properties (e.g. licensing,
 policy compliance) without revealing prompts/responses.
 
-If you have a proposal for cross-miner mixing, open an issue or draft PR against this
-section rather than against the eval harness directly — it needs discussion before it
-needs code.
+If you have a proposal for weighted mixing policies or automated recipe updates, open an
+issue or draft PR against this section rather than against the eval harness directly.
 
 Validated datasets live on Hugging Face and are indexed in-repo via `datasets/registry.jsonl`.
-SparkProof proves integrity regardless of where the HF repo is hosted; the registry is the
-canonical list of merged, verified datasets training miners may cite.
+Cross-miner mixes reference only registry-pinned components via `mix_manifest.json`.
+SparkProof proves each component's integrity; the mix manifest proves composition.
 
 ## What Does Not Score
 

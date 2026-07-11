@@ -111,7 +111,32 @@ datasets, use the **dataset track** — SparkProof on a Blackwell CC VM, then
 [`datasets/registry.jsonl`](datasets/registry.jsonl). GitHub Actions verifies the Hugging
 Face `proof/` bundle, labels `dataset:xs`–`xl`, and merges at ≥25 verified rows. Build the
 registry line with `scripts/registry_line.sh` (see [`datasets/README.md`](datasets/README.md)).
-Training PRs cite a merged registry entry via `proof.bundle --dataset-url`.
+Training PRs cite a merged registry entry via `proof.bundle --dataset-url`, or a
+**cross-miner mix** built with `scripts/mix_registry.sh` (see below).
+
+## Cross-miner dataset mixing
+
+Compose multiple merged registry entries into one Axolotl-ready SFT file with a committed
+`mix_manifest.json` that records per-miner provenance:
+
+```bash
+# After two+ datasets are merged into datasets/registry.jsonl
+scripts/mix_registry.sh mix \
+  --registry datasets/registry.jsonl \
+  --sha256 <sha-from-alice> --sha256 <sha-from-bob> \
+  --out data/processed/mix_sft.jsonl \
+  --manifest-out data/processed/mix_manifest.json \
+  --sparkproof-root ../SparkProof
+
+# Re-check before a training PR
+scripts/mix_registry.sh verify \
+  --manifest data/processed/mix_manifest.json \
+  --sft data/processed/mix_sft.jsonl
+```
+
+Point your recipe at `data/processed/mix_sft.jsonl` and include `mix_manifest.json` in the
+training PR. For proof-of-training, pass `--mix-manifest data/processed/mix_manifest.json`
+to `proof.bundle` — `eval.verify` checks every component is still in the registry.
 
 ## Quickstart
 
@@ -237,11 +262,10 @@ the eval basket is stable.
 `sparkinfer`'s benchmark and eval-trust pipeline automatically, closing the loop between
 model quality improvements here and serving-speed improvements there.
 
-**Phase 4 (research) — Cross-miner dataset mixing.** The **dataset track** already hosts
-verified per-miner datasets on Hugging Face with automated registry gating (see
-[`datasets/README.md`](datasets/README.md)). The open problem is composing multiple
-registry entries into a single training mix with provenance accounting — under active
-design, not yet implemented.
+**Phase 4 — Cross-miner dataset mixing (shipped).** `eval/mix_registry.py` composes
+multiple registry-indexed Hugging Face datasets into one SFT file plus
+`mix_manifest.json` provenance. Each component stays individually SparkProof-verified;
+the mix does not create a new attested bundle.
 
 ## Dataset warning (read before you submit)
 

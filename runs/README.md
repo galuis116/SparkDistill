@@ -19,8 +19,8 @@ was merged. Written by the eval bot at merge time — miners don't write here di
 and (optionally) attestation. The dataset a merged run was trained on is cited via
 `proof.bundle --dataset-url` pointing at a merged entry in
 [`datasets/registry.jsonl`](../datasets/registry.jsonl) (or a small committed file for
-non-Triton experiments). Cross-miner dataset mixing beyond the registry index is still
-open research (see `CONTRIBUTING.md`).
+non-Triton experiments). Cross-miner dataset mixing is supported via `scripts/mix_registry.sh` — see
+[`datasets/README.md`](../datasets/README.md#cross-miner-mixing).
 
 This mirrors `sparkinfer-log`'s public run-log convention, kept inside this repo
 instead of a separate sibling repo.

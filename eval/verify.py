@@ -21,7 +21,9 @@ import sys
 from pathlib import Path
 
 from eval.benchmarks import BENCHMARKS
+from eval.dataset_verify import _sha256_file
 from eval.harness import run_harness
+from eval.mix_registry import REGISTRY_PATH, verify_mix_manifest
 from eval.score import score
 
 # Training-track budget (see docs/miner-guide.md): a proof-of-training claim must have
@@ -59,6 +61,27 @@ def check_training_claims(
     return issues
 
 
+def check_mix_provenance(
+    bundle_dir: Path,
+    manifest: dict,
+    *,
+    registry_path: Path = REGISTRY_PATH,
+) -> list[str]:
+    """Validate a cross-miner mix copied into the proof bundle."""
+    mix_path = bundle_dir / "mix_manifest.json"
+    if not mix_path.exists():
+        if manifest.get("mix_manifest_sha256"):
+            return ["bundle manifest references mix_manifest_sha256 but mix_manifest.json is missing"]
+        return []
+
+    expected_sha = manifest.get("mix_manifest_sha256")
+    if expected_sha and _sha256_file(mix_path) != expected_sha:
+        return ["mix_manifest.json sha256 does not match bundle manifest"]
+
+    report = verify_mix_manifest(mix_path, registry_path=registry_path)
+    return list(report.get("issues") or [])
+
+
 def check_claim(claimed: dict[str, float], rerun: dict[str, float], tolerance_pct: float = 2.0) -> list[str]:
     """Return the benchmark keys where the claimed score diverges from the cheap
     re-run by more than `tolerance_pct` percentage points (absolute)."""
@@ -78,6 +101,8 @@ def verify_submission(
     limit: int = 20,
     tolerance_pct: float = 2.0,
     attestation: dict | None = None,
+    *,
+    registry_path: Path = REGISTRY_PATH,
 ) -> dict:
     manifest = json.loads((bundle_dir / "manifest.json").read_text())
     claimed = json.loads((bundle_dir / "eval_scores.json").read_text())["scores"]
@@ -92,6 +117,16 @@ def verify_submission(
             "verified": False,
             "reason": "training_claims_failed",
             "issues": training_issues,
+            "label": "eval:REJECT",
+            "run_id": manifest.get("run_id"),
+        }
+
+    mix_issues = check_mix_provenance(bundle_dir, manifest, registry_path=registry_path)
+    if mix_issues:
+        return {
+            "verified": False,
+            "reason": "mix_provenance_failed",
+            "issues": mix_issues,
             "label": "eval:REJECT",
             "run_id": manifest.get("run_id"),
         }

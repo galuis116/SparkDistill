@@ -294,9 +294,11 @@ In practice today:
   PR as normal.
 - Datasets: `data/processed/` is git-ignored (these files are large). Train on a dataset
   merged through the **dataset track** (`datasets/registry.jsonl`) and cite its HF URL via
-  `proof.bundle --dataset-url`. If you generated new Triton data, run it through SparkProof
-  and the registry first — that verifies, labels, and rewards it on its own, and makes your
-  training PR trivially reproducible. See [`datasets/README.md`](../datasets/README.md) and
+  `proof.bundle --dataset-url`, or combine multiple registry entries with
+  `scripts/mix_registry.sh` and cite `proof.bundle --mix-manifest data/processed/mix_manifest.json`.
+  If you generated new Triton data, run it through SparkProof and the registry first —
+  that verifies, labels, and rewards it on its own, and makes your training PR trivially
+  reproducible. See [`datasets/README.md`](../datasets/README.md) and
   `scripts/registry_line.sh` to build the registry JSON line after publish.
 
 ## Proof Of Training (Skip Full Retrain-Verification)
@@ -320,6 +322,8 @@ python -m proof.bundle --checkpoint outputs/<your-checkpoint> --scores eval/resu
     --run-id <run-id> --out proof/_bundles/<run-id> \
     --train-hours 4.2 --train-gpu "NVIDIA RTX PRO 6000 Blackwell" \
     --dataset-url https://huggingface.co/datasets/<user>/<merged-dataset>
+# or, for a cross-miner mix:
+#   --mix-manifest data/processed/mix_manifest.json
 python -m proof.publish --bundle proof/_bundles/<run-id> --repo-id <your-hf-username>/sparkdistill-<run-id>
 ```
 

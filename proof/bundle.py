@@ -19,6 +19,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from eval.dataset_verify import _sha256_file
+
 
 @dataclass(frozen=True)
 class ProofBundle:
@@ -37,6 +39,7 @@ def build_bundle(
     train_hours: float | None = None,
     train_gpu: str | None = None,
     dataset_url: str | None = None,
+    mix_manifest: Path | None = None,
 ) -> ProofBundle:
     """Copy `checkpoint_dir`'s files and `scores_path`'s scores into `out_dir`.
 
@@ -59,6 +62,15 @@ def build_bundle(
         manifest["train_gpu"] = train_gpu
     if dataset_url is not None:
         manifest["dataset_url"] = dataset_url
+    if mix_manifest is not None:
+        if not mix_manifest.exists():
+            raise FileNotFoundError(mix_manifest)
+        shutil.copy(mix_manifest, out_dir / "mix_manifest.json")
+        manifest["mix_manifest_sha256"] = _sha256_file(out_dir / "mix_manifest.json")
+        mix_data = json.loads(mix_manifest.read_text(encoding="utf-8"))
+        manifest["mix_id"] = mix_data.get("mix_id")
+        manifest["mix_rows_total"] = mix_data.get("rows_total")
+        manifest["mix_component_count"] = len(mix_data.get("components") or [])
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
 
     return ProofBundle(run_id=run_id, bundle_dir=out_dir, base_model=base_model, created_at=created_at)
@@ -73,6 +85,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--train-hours", type=float, default=None, help="claimed wall-clock training time (budget: 5h)")
     parser.add_argument("--train-gpu", default=None, help="claimed training GPU, e.g. 'NVIDIA RTX PRO 6000 Blackwell'")
     parser.add_argument("--dataset-url", default=None, help="HF datasets URL the checkpoint was trained on")
+    parser.add_argument(
+        "--mix-manifest",
+        type=Path,
+        default=None,
+        help="committed mix_manifest.json from eval.mix_registry (cross-miner training mix)",
+    )
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
 
@@ -85,6 +103,7 @@ def main(argv: list[str] | None = None) -> int:
         train_hours=args.train_hours,
         train_gpu=args.train_gpu,
         dataset_url=args.dataset_url,
+        mix_manifest=args.mix_manifest,
     )
     print(f"wrote proof bundle {bundle.run_id} to {bundle.bundle_dir}", file=sys.stderr)
     return 0

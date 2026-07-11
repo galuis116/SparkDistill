@@ -69,7 +69,28 @@ python -m eval.dataset_verify --hf-repo <user>/<repo> \
 | `dataset:REJECT` | attestation, release-gate, hash, or policy failure |
 
 Merged datasets become fair game for the training track: any training miner may cite a
-registry entry's `hf_url` as the dataset behind a proof-of-training PR.
+registry entry's `hf_url` as the dataset behind a proof-of-training PR, or combine
+multiple entries with `scripts/mix_registry.sh` (see *Cross-miner mixing* below).
+
+## Cross-miner mixing
+
+```bash
+scripts/mix_registry.sh mix \
+  --registry datasets/registry.jsonl \
+  --sha256 <sha-a> --sha256 <sha-b> \
+  --out data/processed/mix_sft.jsonl \
+  --manifest-out data/processed/mix_manifest.json \
+  --sparkproof-root ../SparkProof
+```
+
+`mix_manifest.json` records every component miner, `hf_url`, and `trajectories_sha256`.
+Verify before training:
+
+```bash
+scripts/mix_registry.sh verify \
+  --manifest data/processed/mix_manifest.json \
+  --sft data/processed/mix_sft.jsonl
+```
 
 - **`registry.jsonl`** — append-only, one line per merged dataset PR. Never edited or
   reordered; corrections are appended, not rewritten (same convention as
