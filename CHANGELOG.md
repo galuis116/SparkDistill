@@ -5,6 +5,11 @@ All notable changes to SparkDistill are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-07-12
+
+Hardens the proof of training into dual-vendor authenticated, measured-VM
+attestation — every gap closeable with today's infrastructure is closed.
+
 ### Added
 - **Intel TDX measured-VM proof** ([#45]): `eval.attestation` captures a TDX quote
   via configfs-tsm with the bundle's `claim_sha256` in its 64-byte REPORTDATA;
@@ -27,6 +32,14 @@ All notable changes to SparkDistill are documented here. The format follows
 - Baseline run `2026-07-11-qwen3.5-4b-mining-001` re-attested with GPU + TDX
   claim binding; ledger record carries the strongest available proof ([#46]).
 - Website describes the double (GPU + measured-VM) claim binding ([#47]).
+
+### Fixed
+- Honest claims were rejected on cross-server generation drift ([#51]): the
+  triton composite over the 3-problem quick set moved 2.1pp between vLLM
+  server instances, past the 2pp tolerance — found by the full live function
+  test. Benchmarks gain a per-benchmark `claim_tolerance_pct` (triton: 5pp
+  while the problem set is tiny) and the eval server pins determinism
+  (`--seed 0 --no-enable-prefix-caching`).
 
 ## [0.1.0] — 2026-07-11
 
@@ -108,5 +121,8 @@ and verify it from public artifacts alone.
 [#48]: https://github.com/gittensor-model-hub/SparkDistill/pull/48
 [#49]: https://github.com/gittensor-model-hub/SparkDistill/pull/49
 
-[Unreleased]: https://github.com/gittensor-model-hub/SparkDistill/compare/v0.1.0...HEAD
+[#51]: https://github.com/gittensor-model-hub/SparkDistill/pull/51
+
+[Unreleased]: https://github.com/gittensor-model-hub/SparkDistill/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/gittensor-model-hub/SparkDistill/releases/tag/v0.1.1
 [0.1.0]: https://github.com/gittensor-model-hub/SparkDistill/releases/tag/v0.1.0
