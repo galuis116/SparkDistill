@@ -23,7 +23,7 @@ from typing import Any
 def _assistant_content(trajectory: dict[str, Any]) -> str:
     reasoning = trajectory.get("reasoning")
     response = trajectory["response"].strip()
-    if reasoning:
+    if reasoning and reasoning.strip():
         return f"<think>\n{reasoning.strip()}\n</think>\n\n{response}"
     return response
 

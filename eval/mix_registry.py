@@ -247,7 +247,7 @@ def resolve_proof_dir(
             snapshot_download(
                 repo_id=repo,
                 repo_type="dataset",
-                allow_patterns=["proof/trajectories.jsonl", "proof/dataset_manifest.json"],
+                allow_patterns=["proof/*"],
                 cache_dir=cache_dir,
             )
         )

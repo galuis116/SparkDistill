@@ -13,7 +13,7 @@ import json
 import sys
 from pathlib import Path
 
-from eval.benchmarks import BENCHMARKS
+from eval.benchmarks import BENCHMARKS, assert_fraction_scores
 
 # (lower_bound_pct, label) — first match wins, checked highest-to-lowest.
 _TIER_BANDS = [
@@ -39,6 +39,8 @@ def _tier_for(pct: float) -> str:
 
 
 def score(candidate: dict[str, float], frontier: dict[str, float]) -> dict:
+    assert_fraction_scores(candidate, "candidate")
+    assert_fraction_scores(frontier, "frontier")
     per_benchmark = {}
     regressions = []
     best_pct = float("-inf")
@@ -65,7 +67,7 @@ def score(candidate: dict[str, float], frontier: dict[str, float]) -> dict:
         "label": f"eval:{label}",
         "best_benchmark": best_key,
         "best_pct_delta": None if best_key is None else best_pct,
-        "regressions": [f"regression-{key}" for key in regressions],
+        "regressions": [f"regression-{BENCHMARKS[key].label_slug}" for key in regressions],
         "per_benchmark": per_benchmark,
     }
 

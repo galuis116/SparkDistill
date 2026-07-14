@@ -255,6 +255,7 @@ benchmark-specific labels:
 | `regression-mmlu-pro` | MMLU-Pro accuracy regressed |
 | `regression-aime24` | AIME accuracy regressed |
 | `regression-gpqa-diamond` | GPQA-Diamond accuracy regressed |
+| `regression-triton` | TritonBench composite regressed (Triton-track recipes) |
 
 If no benchmark improves by at least the eval threshold and any guarded benchmark
 regresses, the PR is rejected and may be auto-closed.
@@ -330,6 +331,11 @@ python -m eval.attestation --nonce <claim_sha256> --out runs/<run-id>/attestatio
 # 3. publish the (small, weights-free) bundle
 python -m proof.publish --bundle proof/_bundles/<run-id> --repo-id <your-hf-username>/sparkdistill-<run-id>
 ```
+
+**Score units:** every benchmark score in `candidate.json` / the bundle is a **fraction in
+`[0, 1]`** (an accuracy / pass-rate / composite), matching `runs/frontier.json` — never a
+`0`–`100` percentage. `eval.harness` already emits fractions; if you hand-assemble scores,
+keep them in `[0, 1]` or verification rejects the claim outright.
 
 Put the printed Hugging Face URL — and, if you ran it, your attestation.json — in your
 PR. The validator runs `eval.verify`: it reproduces your checkpoint locally from the
