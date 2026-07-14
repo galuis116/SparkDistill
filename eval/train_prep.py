@@ -50,10 +50,12 @@ def _has_flash_attn_3() -> bool:
 
 def _has_cut_cross_entropy() -> bool:
     try:
-        import axolotl.integrations.cut_cross_entropy  # noqa: F401
+        import cut_cross_entropy  # noqa: F401
+        from axolotl.integrations.cut_cross_entropy import CutCrossEntropyPlugin
 
+        CutCrossEntropyPlugin()._check_requirements()
         return True
-    except ImportError:
+    except Exception:
         return False
 
 
@@ -125,9 +127,16 @@ def prepare_train_recipe(
 
     plugins = cfg.get("plugins")
     if isinstance(plugins, list) and plugins:
+        cce_reason: str | None = None
         if not _has_cut_cross_entropy():
+            cce_reason = "not installed"
+        elif cfg.get("chat_template") == "qwen3_5":
+            # CCE's qwen3_5 patch currently fails against transformers' remote-code
+            # module layout (FileNotFoundError on modeling_qwen3_5).
+            cce_reason = "unsupported for qwen3_5 chat_template"
+        if cce_reason:
             cfg.pop("plugins", None)
-            notes.append("removed CutCrossEntropyPlugin (not installed)")
+            notes.append(f"removed CutCrossEntropyPlugin ({cce_reason})")
 
     destination = out_path or (root / "data" / "prepared" / f"{recipe_path.stem}.prepared.yaml")
     destination.parent.mkdir(parents=True, exist_ok=True)

@@ -53,12 +53,13 @@ scripts/prepare_mining_sft.sh
 scripts/train.sh recipes/qwen3.5-4b-phase1/sft-mining.yaml
 ```
 
-`scripts/install_train.sh` installs Qwen3.5's `torchvision` dependency and builds
-FlashAttention 2 for Blackwell SM120 (the first build takes several minutes).
-Set `SPARKDISTILL_SKIP_FLASH_ATTN=1` only when an SDPA fallback is intentional.
-`scripts/train.sh` resolves recipe paths from the SparkDistill root and disables
-`sample_packing` when the jsonl has fewer than 32 rows (Axolotl multipack otherwise
-crashes).
+`scripts/install_train.sh` installs Qwen3.5's `torchvision` dependency and Axolotl.
+On **Blackwell (SM120+)**, FlashAttention 2 source builds are skipped by default
+(compile fails); `scripts/train.sh` falls back to **SDPA** automatically. On Hopper
+and earlier GPUs it prefers the FlashAttention 3 wheel, then attempts a FlashAttention
+2 build. Set `SPARKDISTILL_SKIP_FLASH_ATTN=1` to force SDPA everywhere.
+`scripts/train.sh` also disables `sample_packing` on small jsonl mixes and strips
+`CutCrossEntropyPlugin` for `qwen3_5` recipes until CCE's Qwen3.5 patch is fixed.
 
 ## Local phase-1 trajectories
 
